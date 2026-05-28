@@ -637,9 +637,8 @@ function applyMeas(itemId, value, method) {
   App.currentRecord.summary = Judge.summary(App.currentRecord.measurements);
   if (m.judgment === 'NG') {
     navigator.vibrate && navigator.vibrate([200, 100, 200]);
-    Sp.say(`${m.itemName} ${value} エヌジー です。確認してください`);
+    Sp.say('NGです。確認してください。');
   } else if (m.judgment === 'OK') {
-    Sp.say(`${m.itemName} ${value} OK`);
     setTimeout(focusNextPending, 500);
   }
   renderTable(); renderSummary();
@@ -655,9 +654,8 @@ function applyJudge(itemId, judgment, method) {
   App.currentRecord.summary = Judge.summary(App.currentRecord.measurements);
   if (judgment === 'NG') {
     navigator.vibrate && navigator.vibrate([200, 100, 200]);
-    Sp.say(`${m.itemName} エヌジー です。確認してください`);
+    Sp.say('NGです。確認してください。');
   } else {
-    Sp.say(`${m.itemName} OK`);
     setTimeout(focusNextPending, 500);
   }
   renderTable(); renderSummary();
