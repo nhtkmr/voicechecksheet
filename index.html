@@ -159,11 +159,9 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
     <div class="card-head">📋 部品情報</div>
     <div class="card-body">
       <div class="form-grid" style="margin-bottom:8px">
-        <div class="fg"><label>品番</label><input id="inp-partNumber" type="text" placeholder="A001"></div>
-        <div class="fg"><label>工程</label><input id="inp-process" type="text" placeholder="旋削"></div>
-        <div class="fg"><label>ロット番号</label><input id="inp-lotNumber" type="text" placeholder="L001"></div>
-        <div class="fg"><label>作業者</label><input id="inp-operator" type="text" placeholder="氏名"></div>
-        <div class="fg"><label>機械番号</label><input id="inp-machine" type="text" placeholder="旋盤#1"></div>
+        <div class="fg"><label>品番</label><select id="inp-partNumber"><option value="">— 選択 —</option></select></div>
+        <div class="fg"><label>工程</label><select id="inp-process"><option value="">— 選択 —</option></select></div>
+        <div class="fg"><label>作業者</label><select id="inp-operator"><option value="">— 選択 —</option></select></div>
         <div class="fg"><label>日時</label><input id="inp-date" type="text" readonly></div>
       </div>
       <div class="fg">
@@ -263,6 +261,15 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
     </div>
   </div>
 
+  <div class="card">
+    <div class="card-head">🗂 マスターデータ管理</div>
+    <div class="card-body" id="master-data-body">
+      <div id="master-pn" style="margin-bottom:16px"></div>
+      <div id="master-proc" style="margin-bottom:16px"></div>
+      <div id="master-oper"></div>
+    </div>
+  </div>
+
 </div>
 
 <!-- ═══════════════ HISTORY SCREEN ═══════════════ -->
@@ -329,7 +336,7 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 // ══════════════════════════════════════
 // Constants
 // ══════════════════════════════════════
-const SK = { TMPL: 'vcs_templates', REC: 'vcs_records' };
+const SK = { TMPL: 'vcs_templates', REC: 'vcs_records', PNUMS: 'vcs_partNumbers', PROCS: 'vcs_processes', OPERS: 'vcs_operators' };
 const MAX_REC = 200;
 const RESTART_DELAY = 300;
 const MAX_ERRORS = 5;
@@ -368,6 +375,8 @@ const Store = {
   },
   addRec(r) { const a = this.loadRec(); a.unshift(r); this.saveRec(a); },
   delRec(id) { this.saveRec(this.loadRec().filter(r => r.id !== id)); },
+  loadMaster(key) { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; } },
+  saveMaster(key, arr) { try { localStorage.setItem(key, JSON.stringify(arr)); } catch { toast('保存容量が不足しています'); } },
 };
 
 // ══════════════════════════════════════
@@ -411,8 +420,6 @@ function mkRecord(tmplId, partInfo) {
     partNumber: partInfo.partNumber || '',
     process: partInfo.process || '',
     operator: partInfo.operator || '',
-    lotNumber: partInfo.lotNumber || '',
-    machine: partInfo.machine || '',
     startedAt: new Date().toISOString(),
     savedAt: null,
     measurements: tmpl.items.map(item => {
@@ -540,6 +547,15 @@ const Sp = {
 
   processGlobal(text) {
     const n = normalize(text);
+
+    // Part info field selection (品番 / 工程 / 作業者)
+    const fm = n.match(/^(品番|ひんばん|工程|こうてい|作業者|さぎょうしゃ)[　 　](.+)/);
+    if (fm) {
+      const kw = fm[1]; const val = fm[2].trim();
+      if (/品番|ひんばん/.test(kw))   { selectMasterField(SK.PNUMS, val); return; }
+      if (/工程|こうてい/.test(kw))   { selectMasterField(SK.PROCS, val); return; }
+      if (/作業者|さぎょうしゃ/.test(kw)) { selectMasterField(SK.OPERS, val); return; }
+    }
 
     // Navigation / action commands
     if (/^(次|つぎ|ネクスト)/.test(n)) { focusNextItem(); return; }
@@ -706,13 +722,90 @@ function focusNextPending() {
   }
 }
 
+// ══════════════════════════════════════
+// Master data (品番 / 工程 / 作業者)
+// ══════════════════════════════════════
+const MASTER_FIELDS = [
+  { key: SK.PNUMS, label: '品番',   selId: 'inp-partNumber', divId: 'master-pn',   inputId: 'master-add-pn'   },
+  { key: SK.PROCS, label: '工程',   selId: 'inp-process',    divId: 'master-proc', inputId: 'master-add-proc' },
+  { key: SK.OPERS, label: '作業者', selId: 'inp-operator',   divId: 'master-oper', inputId: 'master-add-oper' },
+];
+
+function populateSelects() {
+  MASTER_FIELDS.forEach(f => {
+    const sel = document.getElementById(f.selId);
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">— 選択 —</option>';
+    Store.loadMaster(f.key).forEach(v => {
+      const o = document.createElement('option');
+      o.value = o.textContent = v;
+      sel.appendChild(o);
+    });
+    if (current) sel.value = current;
+  });
+}
+
+function renderMasterData() {
+  MASTER_FIELDS.forEach(f => {
+    const div = document.getElementById(f.divId);
+    if (!div) return;
+    const items = Store.loadMaster(f.key);
+    const chips = items.map(v =>
+      `<span style="display:inline-flex;align-items:center;gap:4px;background:#e3f2fd;border-radius:14px;padding:3px 10px;margin:3px;font-size:13px">
+        ${escHtml(v)}
+        <button onclick="deleteMaster('${f.key}','${escAttr(v)}')" style="background:none;border:none;cursor:pointer;color:#888;font-size:14px;line-height:1;padding:0 2px">✕</button>
+      </span>`
+    ).join('');
+    div.innerHTML = `
+      <div style="font-weight:bold;font-size:13px;margin-bottom:6px">${f.label}</div>
+      <div style="margin-bottom:6px">${chips || '<span style="color:var(--muted);font-size:13px">（未登録）</span>'}</div>
+      <div style="display:flex;gap:6px">
+        <input id="${f.inputId}" type="text" placeholder="${f.label}を入力" style="flex:1;font-size:14px;padding:6px 10px;border:2px solid var(--border);border-radius:6px">
+        <button class="btn btn-primary btn-sm" onclick="addMaster('${f.key}','${f.inputId}')">追加</button>
+      </div>`;
+  });
+}
+
+function addMaster(key, inputId) {
+  const el = document.getElementById(inputId);
+  const val = el.value.trim();
+  if (!val) return;
+  const arr = Store.loadMaster(key);
+  if (!arr.includes(val)) { arr.push(val); Store.saveMaster(key, arr); }
+  el.value = '';
+  populateSelects();
+  renderMasterData();
+}
+
+function deleteMaster(key, val) {
+  const arr = Store.loadMaster(key).filter(v => v !== val);
+  Store.saveMaster(key, arr);
+  populateSelects();
+  renderMasterData();
+}
+
+function selectMasterField(key, spokenVal) {
+  const f = MASTER_FIELDS.find(f => f.key === key);
+  if (!f) return;
+  const items = Store.loadMaster(key);
+  const found = items.find(v => v === spokenVal) || items.find(v => v.includes(spokenVal) || spokenVal.includes(v));
+  if (found) {
+    document.getElementById(f.selId).value = found;
+    setVoiceStatus(`${f.label}「${found}」を選択`);
+  } else {
+    setVoiceStatus(`「${spokenVal}」— ${f.label}に該当なし`);
+  }
+}
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s) { return String(s).replace(/'/g,"\\'"); }
+
 function readPartInfo() {
   return {
     partNumber: document.getElementById('inp-partNumber').value,
     process:    document.getElementById('inp-process').value,
     operator:   document.getElementById('inp-operator').value,
-    lotNumber:  document.getElementById('inp-lotNumber').value,
-    machine:    document.getElementById('inp-machine').value,
   };
 }
 function writePartInfo(r) {
@@ -720,8 +813,6 @@ function writePartInfo(r) {
     document.getElementById('inp-partNumber').value = r.partNumber || '';
     document.getElementById('inp-process').value    = r.process || '';
     document.getElementById('inp-operator').value   = r.operator || '';
-    document.getElementById('inp-lotNumber').value  = r.lotNumber || '';
-    document.getElementById('inp-machine').value    = r.machine || '';
   }
 }
 
@@ -756,8 +847,8 @@ function clearRecord() {
 // ══════════════════════════════════════
 function buildCSV(rec) {
   const rows = [];
-  rows.push(['品番','工程','作業者','ロット番号','機械番号','開始日時','保存日時','テンプレート']);
-  rows.push([rec.partNumber,rec.process,rec.operator,rec.lotNumber,rec.machine,
+  rows.push(['品番','工程','作業者','開始日時','保存日時','テンプレート']);
+  rows.push([rec.partNumber,rec.process,rec.operator,
     fmtDt(rec.startedAt), fmtDt(rec.savedAt), rec.templateName]);
   rows.push([]);
   rows.push(['項目名','単位','公称値','上限値','下限値','測定値','判定','入力方法','測定時刻']);
@@ -774,10 +865,10 @@ function buildCSV(rec) {
   return '﻿' + rows.map(r => r.map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
 }
 function buildAllCSV(recs) {
-  const hdr = ['品番','工程','作業者','ロット','機械','保存日時','テンプレート','項目名','単位','公称値','上限値','下限値','測定値','判定','入力方法'];
+  const hdr = ['品番','工程','作業者','保存日時','テンプレート','項目名','単位','公称値','上限値','下限値','測定値','判定','入力方法'];
   const rows = [hdr];
   recs.forEach(rec => rec.measurements.forEach(m => rows.push([
-    rec.partNumber,rec.process,rec.operator,rec.lotNumber,rec.machine,
+    rec.partNumber,rec.process,rec.operator,
     fmtDt(rec.savedAt||rec.startedAt),rec.templateName,
     m.itemName,m.unit||'',
     m.nominalValue!==null?m.nominalValue:'',
@@ -910,7 +1001,7 @@ function renderHistory() {
     const dt = fmtDt(r.savedAt || r.startedAt);
     return `<div class="hist-item" onclick="showHist('${r.id}')">
       <div class="hist-header"><strong>${r.partNumber||'(品番なし)'}</strong><span class="hist-date">${dt}</span></div>
-      <div class="hist-sub">${r.templateName} ／ ${r.operator||'—'} ／ ロット: ${r.lotNumber||'—'}</div>
+      <div class="hist-sub">${r.templateName} ／ ${r.process||'—'} ／ ${r.operator||'—'}</div>
       <div class="hist-badges"><span class="badge badge-ok">OK:${s.ok}</span><span class="badge badge-ng">NG:${s.ng}</span><span class="badge badge-pending">未:${s.pending}</span></div>
     </div>`;
   }).join('');
@@ -1154,7 +1245,7 @@ function showHist(id) {
   const r = selectedRec;
   document.getElementById('modal-title').textContent = `${r.partNumber||'品番なし'} — ${fmtDt(r.savedAt||r.startedAt)}`;
   let body = `<div style="font-size:13px;color:var(--muted);margin-bottom:12px">
-    ${r.templateName} ／ 工程:${r.process||'—'} ／ 作業者:${r.operator||'—'} ／ ロット:${r.lotNumber||'—'} ／ 機械:${r.machine||'—'}
+    ${r.templateName} ／ 工程:${r.process||'—'} ／ 作業者:${r.operator||'—'}
   </div>
   <table style="width:100%;border-collapse:collapse;font-size:14px">
     <thead><tr style="background:#f5f5f5">
@@ -1223,6 +1314,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.getElementById('inp-date').value = fmtDt(new Date().toISOString());
+  populateSelects();
+  renderMasterData();
   renderTemplateSelector();
   renderTable();
   renderSummary();
