@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#1565C0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="初物チェック">
+<link rel="manifest" href="manifest.json">
+<title>初物チェックシート</title>
+<style>
+:root {
+  --primary:#1565C0; --primary-dk:#0D47A1; --primary-lt:#E3F2FD;
+  --ok:#2E7D32; --ok-lt:#E8F5E9;
+  --ng:#C62828; --ng-lt:#FFEBEE;
+  --focused:#FFF9C4;
+  --listening:#E53935;
+  --bg:#F5F5F5; --card:#fff; --border:#E0E0E0;
+  --text:#212121; --muted:#757575;
+  --radius:8px; --shadow:0 1px 4px rgba(0,0,0,.12);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Hiragino Sans','Meiryo',sans-serif;background:var(--bg);color:var(--text);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+
+/* ── Header / Nav ── */
+.app-header{background:var(--primary);color:#fff;padding:10px 16px 0;position:sticky;top:0;z-index:100;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.app-title{font-size:17px;font-weight:bold;margin-bottom:8px}
+.nav-tabs{display:flex}
+.nav-tab{padding:10px 14px;background:none;border:none;color:rgba(255,255,255,.7);font-size:14px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:color .2s,border-color .2s}
+.nav-tab.active{color:#fff;border-bottom-color:#fff}
+
+/* ── Screens ── */
+.screen{display:none;padding:12px 12px 0}
+.screen.active{display:block}
+#screen-check{padding-bottom:160px}
+
+/* ── Card ── */
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden}
+.card-head{background:#f8f8f8;padding:10px 14px;font-weight:bold;font-size:13px;color:var(--muted);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card-body{padding:12px 14px}
+
+/* ── Form ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fg{display:flex;flex-direction:column;gap:4px}
+label{font-size:12px;font-weight:bold;color:var(--muted)}
+input[type=text],input[type=number],input[type=date],select,textarea{
+  width:100%;padding:9px 11px;border:2px solid var(--border);border-radius:6px;
+  font-size:16px;background:#fff;transition:border-color .2s;color:var(--text)}
+input:focus,select:focus{outline:none;border-color:var(--primary)}
+input[readonly]{background:#f5f5f5}
+select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M0 0l6 8 6-8z' fill='%23757575'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:10px 14px;border:none;border-radius:6px;font-size:14px;font-weight:bold;cursor:pointer;min-height:44px;transition:filter .15s}
+.btn:active{filter:brightness(.9)}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-success{background:var(--ok);color:#fff}
+.btn-danger{background:var(--ng);color:#fff}
+.btn-outline{background:#fff;border:2px solid var(--border);color:var(--text)}
+.btn-sm{padding:6px 10px;font-size:13px;min-height:36px}
+.btn-block{width:100%}
+.btn-icon{padding:8px;min-width:44px}
+.action-row{display:flex;gap:8px;margin-bottom:12px}
+.action-row .btn{flex:1}
+
+/* ── Measurement Table ── */
+.meas-table{width:100%;border-collapse:collapse;font-size:14px}
+.meas-table th{background:#f5f5f5;padding:8px 5px;text-align:center;border-bottom:2px solid var(--border);font-size:12px;white-space:nowrap}
+.meas-table th:first-child{text-align:left}
+.meas-table td{padding:5px;border-bottom:1px solid var(--border);vertical-align:middle}
+.meas-row{transition:background .15s}
+.meas-row.focused{background:var(--focused)}
+.meas-row.ok{background:var(--ok-lt)}
+.meas-row.ng{background:var(--ng-lt)}
+.td-name{font-weight:bold;cursor:pointer;min-width:72px}
+.td-spec{text-align:center;color:var(--muted);font-size:12px;min-width:80px}
+.td-value{min-width:90px}
+.td-judge{text-align:center;min-width:44px}
+.td-mic{text-align:center;min-width:40px}
+.unit-text{font-size:11px;color:var(--muted);font-weight:normal}
+.meas-input{width:100%;padding:7px 6px;border:2px solid var(--border);border-radius:4px;font-size:20px;font-weight:bold;text-align:center;background:#fff}
+.meas-input:focus{outline:none;border-color:var(--primary)}
+.meas-input.ok{border-color:var(--ok);background:var(--ok-lt);color:var(--ok)}
+.meas-input.ng{border-color:var(--ng);background:var(--ng-lt);color:var(--ng)}
+.okng-btns{display:flex;gap:4px}
+.btn-okng{flex:1;padding:8px 4px;border:2px solid var(--border);border-radius:4px;background:#fff;font-weight:bold;font-size:14px;cursor:pointer;min-height:44px;transition:all .15s}
+.btn-okng.sel-ok{background:var(--ok);color:#fff;border-color:var(--ok)}
+.btn-okng.sel-ng{background:var(--ng);color:#fff;border-color:var(--ng)}
+
+/* ── Badges ── */
+.badge{display:inline-block;padding:3px 7px;border-radius:4px;font-weight:bold;font-size:13px;white-space:nowrap}
+.badge-ok{background:var(--ok);color:#fff}
+.badge-ng{background:var(--ng);color:#fff}
+.badge-pending{background:#e0e0e0;color:var(--muted)}
+.ok-text{color:var(--ok)}
+.ng-text{color:var(--ng)}
+
+/* ── Mic button (in table) ── */
+.mic-btn{background:none;border:none;font-size:22px;cursor:pointer;padding:4px;line-height:1;border-radius:4px;transition:background .15s}
+.mic-btn:active,.mic-btn.recording{background:var(--ng-lt)}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(1.15)}}
+.mic-btn.recording{animation:pulse .7s infinite}
+
+/* ── Voice Panel ── */
+.voice-panel{position:fixed;bottom:0;left:0;right:0;background:#fff;box-shadow:0 -2px 8px rgba(0,0,0,.15);padding:8px 12px 10px;z-index:50}
+.transcript-area{background:var(--primary-lt);border-radius:6px;padding:8px 12px;font-size:15px;color:var(--primary);margin-bottom:6px;min-height:36px}
+.voice-status{text-align:center;font-size:12px;color:var(--muted);margin-bottom:6px;min-height:18px}
+.voice-controls{display:flex;gap:8px;align-items:center}
+.btn-global-mic{flex:1;height:52px;background:var(--primary);color:#fff;border:none;border-radius:26px;font-size:15px;font-weight:bold;cursor:pointer;transition:background .2s}
+.btn-global-mic.listening{background:var(--listening);animation:pulse .7s infinite}
+
+/* ── Template Tab ── */
+.tmpl-list-item{display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;gap:8px;transition:background .15s}
+.tmpl-list-item:last-child{border-bottom:none}
+.tmpl-list-item.active{background:var(--primary-lt)}
+.tmpl-item{display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);gap:8px}
+.tmpl-item:last-child{border-bottom:none}
+.tmpl-item-info{flex:1;font-size:14px}
+
+/* ── History Tab ── */
+.hist-item{padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s}
+.hist-item:active{background:var(--primary-lt)}
+.hist-header{display:flex;justify-content:space-between;margin-bottom:3px;align-items:baseline}
+.hist-date{font-size:12px;color:var(--muted)}
+.hist-sub{font-size:12px;color:var(--muted);margin-bottom:5px}
+.hist-badges{display:flex;gap:6px;flex-wrap:wrap}
+
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.modal-overlay.hidden{display:none}
+.modal-box{background:#fff;border-radius:12px 12px 0 0;width:100%;max-height:85vh;display:flex;flex-direction:column}
+.modal-head{padding:14px 16px;font-weight:bold;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.modal-body{padding:14px;overflow-y:auto;flex:1}
+.modal-foot{padding:12px 14px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:140px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;z-index:300;white-space:nowrap;transition:opacity .3s}
+.toast.hidden{opacity:0;pointer-events:none}
+
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-title">🔧 初物チェックシート</div>
+  <div class="nav-tabs">
+    <button id="tab-check" class="nav-tab active" onclick="switchTab('check')">チェック</button>
+    <button id="tab-template" class="nav-tab" onclick="switchTab('template')">テンプレート</button>
+    <button id="tab-history" class="nav-tab" onclick="switchTab('history')">履歴</button>
+  </div>
+</header>
+
+<!-- ═══════════════ CHECK SCREEN ═══════════════ -->
+<div id="screen-check" class="screen active">
+
+  <div class="card">
+    <div class="card-head">📋 部品情報</div>
+    <div class="card-body">
+      <div class="form-grid" style="margin-bottom:8px">
+        <div class="fg"><label>品番</label><input id="inp-partNumber" type="text" placeholder="A001"></div>
+        <div class="fg"><label>工程</label><input id="inp-process" type="text" placeholder="旋削"></div>
+        <div class="fg"><label>ロット番号</label><input id="inp-lotNumber" type="text" placeholder="L001"></div>
+        <div class="fg"><label>作業者</label><input id="inp-operator" type="text" placeholder="氏名"></div>
+        <div class="fg"><label>機械番号</label><input id="inp-machine" type="text" placeholder="旋盤#1"></div>
+        <div class="fg"><label>日時</label><input id="inp-date" type="text" readonly></div>
+      </div>
+      <div class="fg">
+        <label>テンプレート</label>
+        <select id="sel-template" onchange="selectTemplate(this.value)">
+          <option value="">— テンプレートを選択 —</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      📐 測定項目
+      <span id="summary-bar" style="font-weight:normal;font-size:13px">—</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="meas-table">
+        <thead>
+          <tr>
+            <th style="text-align:left">項目</th>
+            <th>公称値/公差</th>
+            <th>測定値</th>
+            <th>判定</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="meas-tbody"></tbody>
+      </table>
+      <div id="no-template-msg" style="text-align:center;color:var(--muted);padding:24px">
+        テンプレートを選択してください
+      </div>
+    </div>
+  </div>
+
+  <div class="action-row">
+    <button class="btn btn-outline" onclick="confirmClear()">🗑 クリア</button>
+    <button class="btn btn-primary" onclick="exportCSV()">📊 CSV</button>
+    <button class="btn btn-success" onclick="saveRecord()">💾 保存</button>
+  </div>
+
+</div>
+
+<!-- ═══════════════ TEMPLATE SCREEN ═══════════════ -->
+<div id="screen-template" class="screen" style="padding-bottom:20px">
+
+  <div class="card">
+    <div class="card-head">
+      📁 テンプレート一覧
+      <button class="btn btn-sm btn-primary" onclick="createNewTemplate()">＋ 新規</button>
+    </div>
+    <div id="tmpl-list"><p style="color:var(--muted);text-align:center;padding:16px">テンプレートがありません</p></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">✏ テンプレート編集</div>
+    <div class="card-body">
+      <div class="fg">
+        <label>テンプレート名</label>
+        <div style="display:flex;gap:8px">
+          <input id="tmpl-edit-name" type="text" placeholder="テンプレート名を入力" style="flex:1">
+          <button class="btn btn-primary btn-sm" onclick="saveTemplateName()">保存</button>
+        </div>
+      </div>
+    </div>
+    <div id="tmpl-item-list"><p style="color:var(--muted);text-align:center;padding:16px">テンプレートを選択してください</p></div>
+    <div class="card-body" style="background:#fafafa;border-top:1px solid var(--border)">
+      <strong style="font-size:14px;display:block;margin-bottom:8px">＋ 項目を追加</strong>
+      <div class="fg" style="margin-bottom:8px"><label>項目名</label><input id="ti-name" type="text" placeholder="例: 外径"></div>
+      <div class="form-grid" style="margin-bottom:8px">
+        <div class="fg">
+          <label>種別</label>
+          <select id="ti-type" onchange="toggleTypeFields()">
+            <option value="numeric">数値（公差範囲）</option>
+            <option value="okng">OK / NG 選択</option>
+          </select>
+        </div>
+        <div class="fg" id="fg-unit"><label>単位</label><input id="ti-unit" type="text" placeholder="mm" value="mm"></div>
+      </div>
+      <div id="numeric-fields" class="form-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:8px">
+        <div class="fg"><label>公称値</label><input id="ti-nominal" type="number" step="any" placeholder="25.0"></div>
+        <div class="fg"><label>上限公差(+)</label><input id="ti-upper" type="number" step="any" placeholder="0.05" min="0"></div>
+        <div class="fg"><label>下限公差(+入力)</label><input id="ti-lower" type="number" step="any" placeholder="0.05" min="0"></div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="addTemplateItem()">追加</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">📥 プリセット読込</div>
+    <div class="card-body">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-outline" onclick="loadPreset('lathe')">旋盤加工品</button>
+        <button class="btn btn-outline" onclick="loadPreset('press')">プレス加工品</button>
+        <button class="btn btn-outline" onclick="loadPreset('milling')">フライス加工品</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ HISTORY SCREEN ═══════════════ -->
+<div id="screen-history" class="screen" style="padding-bottom:20px">
+
+  <div class="card">
+    <div class="card-head">📊 本日の集計</div>
+    <div class="card-body" id="today-summary" style="color:var(--muted);font-size:14px">—</div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="form-grid" style="margin-bottom:8px">
+        <div class="fg"><label>品番フィルター</label><input id="hist-filter-pn" type="text" placeholder="品番で絞込み"></div>
+        <div class="fg"><label>日付（開始）</label><input id="hist-filter-from" type="date"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="applyHistFilter()">🔍 絞込み</button>
+        <button class="btn btn-outline btn-sm" onclick="clearHistFilter()">クリア</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <button class="btn btn-primary btn-sm" onclick="exportAllCSV()">📊 全件CSV</button>
+    <button class="btn btn-danger btn-sm" onclick="clearAllHistory()">🗑 全件削除</button>
+  </div>
+
+  <div class="card" id="hist-list"></div>
+</div>
+
+<!-- ═══════════════ VOICE PANEL ═══════════════ -->
+<div id="voice-panel" class="voice-panel">
+  <div id="transcript-area" class="transcript-area hidden"></div>
+  <div id="voice-status" class="voice-status">🎤 タップして音声入力 / 行の🎤で個別入力</div>
+  <div class="voice-controls">
+    <button class="btn btn-outline btn-icon" title="前の項目" onclick="focusPrevItem()">◀</button>
+    <button id="btn-global-mic" class="btn-global-mic" onclick="toggleGlobalMic()">🎤 音声入力開始</button>
+    <button class="btn btn-outline btn-icon" title="次の項目" onclick="focusNextItem()">▶</button>
+  </div>
+</div>
+
+<!-- ═══════════════ MODAL ═══════════════ -->
+<div id="modal-overlay" class="modal-overlay hidden" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span id="modal-title">詳細</span>
+      <button class="btn btn-sm btn-outline" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot">
+      <button class="btn btn-primary btn-sm" onclick="exportSelectedCSV()">📊 CSV</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteSelectedRecord()">削除</button>
+      <button class="btn btn-outline btn-sm" onclick="closeModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════
+// Constants
+// ══════════════════════════════════════
+const SK = { TMPL: 'vcs_templates', REC: 'vcs_records' };
+const MAX_REC = 200;
+const RESTART_DELAY = 300;
+const MAX_ERRORS = 5;
+
+// ══════════════════════════════════════
+// AppState
+// ══════════════════════════════════════
+const App = {
+  currentTab: 'check',
+  currentTemplate: null,
+  currentRecord: null,
+  focusedItemId: null,
+  isListening: false,
+  speechErrors: 0,
+  speechMode: 'global',
+  activeItemId: null,
+  templates: [],
+  records: [],
+  editingTemplate: null,
+  histFilter: { partNumber: '', dateFrom: '' },
+  lastInput: null,
+  online: navigator.onLine,
+};
+
+// ══════════════════════════════════════
+// Storage
+// ══════════════════════════════════════
+const Store = {
+  loadTmpl() { try { return JSON.parse(localStorage.getItem(SK.TMPL) || '[]'); } catch { return []; } },
+  saveTmpl(a) { try { localStorage.setItem(SK.TMPL, JSON.stringify(a)); } catch { toast('保存容量が不足しています'); } },
+  loadRec() { try { return JSON.parse(localStorage.getItem(SK.REC) || '[]'); } catch { return []; } },
+  saveRec(a) {
+    if (a.length > MAX_REC) a = a.slice(0, MAX_REC);
+    try { localStorage.setItem(SK.REC, JSON.stringify(a)); }
+    catch { a.pop(); try { localStorage.setItem(SK.REC, JSON.stringify(a)); } catch { toast('保存容量が不足しています'); } }
+  },
+  addRec(r) { const a = this.loadRec(); a.unshift(r); this.saveRec(a); },
+  delRec(id) { this.saveRec(this.loadRec().filter(r => r.id !== id)); },
+};
+
+// ══════════════════════════════════════
+// Judgment
+// ══════════════════════════════════════
+const Judge = {
+  limits(item) {
+    if (item.type !== 'numeric' || item.nominalValue === null) return null;
+    return {
+      upper: round6(item.nominalValue + item.upperTol),
+      lower: round6(item.nominalValue + item.lowerTol),
+    };
+  },
+  check(value, limits) {
+    if (value === null || limits === null) return null;
+    const v = round6(parseFloat(value));
+    return (v >= limits.lower && v <= limits.upper) ? 'OK' : 'NG';
+  },
+  summary(meas) {
+    const ok = meas.filter(m => m.judgment === 'OK').length;
+    const ng = meas.filter(m => m.judgment === 'NG').length;
+    const pend = meas.filter(m => m.judgment === null).length;
+    return { total: meas.length, ok, ng, pending: pend };
+  },
+};
+
+function round6(n) { return parseFloat(parseFloat(n).toFixed(6)); }
+
+// ══════════════════════════════════════
+// Template helpers
+// ══════════════════════════════════════
+function tmplById(id) { return App.templates.find(t => t.id === id); }
+
+function mkRecord(tmplId, partInfo) {
+  const tmpl = tmplById(tmplId);
+  if (!tmpl) return null;
+  return {
+    id: 'rec_' + Date.now(),
+    templateId: tmpl.id,
+    templateName: tmpl.name,
+    partNumber: partInfo.partNumber || '',
+    process: partInfo.process || '',
+    operator: partInfo.operator || '',
+    lotNumber: partInfo.lotNumber || '',
+    machine: partInfo.machine || '',
+    startedAt: new Date().toISOString(),
+    savedAt: null,
+    measurements: tmpl.items.map(item => {
+      const lim = Judge.limits(item);
+      return {
+        itemId: item.id, itemName: item.name, unit: item.unit,
+        type: item.type, nominalValue: item.nominalValue,
+        upperLimit: lim ? lim.upper : null, lowerLimit: lim ? lim.lower : null,
+        measuredValue: null, judgment: null, inputMethod: null, measuredAt: null,
+      };
+    }),
+    summary: { total: tmpl.items.length, ok: 0, ng: 0, pending: tmpl.items.length },
+  };
+}
+
+// Preset templates
+const PRESETS = {
+  lathe: { name: '旋盤加工品', items: [
+    { name:'外径', aliases:['そとけい','がいけい'], nominalValue:25.0, upperTol:0.05, lowerTol:-0.05, unit:'mm', type:'numeric' },
+    { name:'内径', aliases:['ないけい'], nominalValue:10.0, upperTol:0.03, lowerTol:-0.03, unit:'mm', type:'numeric' },
+    { name:'全長', aliases:['ぜんちょう'], nominalValue:50.0, upperTol:0.1, lowerTol:-0.1, unit:'mm', type:'numeric' },
+    { name:'表面粗さ', aliases:['あらさ','めんあらさ'], nominalValue:1.6, upperTol:0.4, lowerTol:-1.6, unit:'μm', type:'numeric' },
+    { name:'外観', aliases:['がいかん'], nominalValue:null, upperTol:null, lowerTol:null, unit:'', type:'okng' },
+  ]},
+  press: { name: 'プレス加工品', items: [
+    { name:'穴径', aliases:['あなけい'], nominalValue:10.0, upperTol:0.05, lowerTol:0, unit:'mm', type:'numeric' },
+    { name:'板厚', aliases:['いたあつ'], nominalValue:2.0, upperTol:0.1, lowerTol:-0.1, unit:'mm', type:'numeric' },
+    { name:'幅', aliases:['はば'], nominalValue:50.0, upperTol:0.3, lowerTol:-0.3, unit:'mm', type:'numeric' },
+    { name:'バリ', aliases:['ばり'], nominalValue:null, upperTol:null, lowerTol:null, unit:'', type:'okng' },
+    { name:'外観', aliases:['がいかん'], nominalValue:null, upperTol:null, lowerTol:null, unit:'', type:'okng' },
+  ]},
+  milling: { name: 'フライス加工品', items: [
+    { name:'幅', aliases:['はば'], nominalValue:80.0, upperTol:0.1, lowerTol:-0.1, unit:'mm', type:'numeric' },
+    { name:'高さ', aliases:['たかさ'], nominalValue:40.0, upperTol:0.1, lowerTol:-0.1, unit:'mm', type:'numeric' },
+    { name:'平面度', aliases:['へいめんど'], nominalValue:0, upperTol:0.05, lowerTol:0, unit:'mm', type:'numeric' },
+    { name:'表面粗さ', aliases:['あらさ'], nominalValue:3.2, upperTol:0.8, lowerTol:-3.2, unit:'μm', type:'numeric' },
+    { name:'外観', aliases:['がいかん'], nominalValue:null, upperTol:null, lowerTol:null, unit:'', type:'okng' },
+  ]},
+};
+
+// ══════════════════════════════════════
+// Speech Engine
+// ══════════════════════════════════════
+const Sp = {
+  rec: null,
+  synth: window.speechSynthesis,
+
+  init() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return false;
+    this.rec = new SR();
+    this.rec.lang = 'ja-JP';
+    this.rec.continuous = true;
+    this.rec.interimResults = true;
+    this.rec.maxAlternatives = 3;
+
+    this.rec.onstart = () => { App.isListening = true; App.speechErrors = 0; updateMicBtn(); };
+
+    this.rec.onresult = e => {
+      let interim = '', final = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) final += t; else interim += t;
+      }
+      showTranscript(final || interim, !!final);
+      if (final) this.processGlobal(final.trim());
+    };
+
+    this.rec.onerror = e => {
+      App.speechErrors++;
+      if (e.error === 'not-allowed') { App.isListening = false; updateMicBtn(); toast('マイクの使用が許可されていません'); }
+      else if (e.error !== 'no-speech') toast('音声認識エラー: ' + e.error);
+    };
+
+    this.rec.onend = () => {
+      if (App.isListening && App.speechErrors < MAX_ERRORS) {
+        setTimeout(() => { if (App.isListening) try { this.rec.start(); } catch(e) {} }, RESTART_DELAY);
+      } else {
+        App.isListening = false; updateMicBtn();
+      }
+    };
+    return true;
+  },
+
+  startGlobal() {
+    if (!this.rec) { toast('音声認識が利用できません'); return; }
+    if (!App.online) { toast('オフラインのため音声入力は使用できません'); return; }
+    App.isListening = true; App.speechErrors = 0;
+    try { this.rec.start(); } catch(e) {}
+  },
+
+  stopGlobal() {
+    App.isListening = false;
+    try { this.rec && this.rec.stop(); } catch(e) {}
+    updateMicBtn();
+  },
+
+  startItem(itemId) {
+    if (!this.rec) { toast('音声認識が利用できません'); return; }
+    if (!App.online) { toast('オフラインのため音声入力は使用できません'); return; }
+    App.focusedItemId = itemId;
+
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const one = new SR();
+    one.lang = 'ja-JP'; one.continuous = false; one.interimResults = true; one.maxAlternatives = 3;
+
+    setItemMicActive(itemId, true);
+
+    one.onresult = e => {
+      let interim = '', final = '';
+      for (let i = 0; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) final += t; else interim += t;
+      }
+      showTranscript(final || interim, !!final);
+      if (final) this.processItem(final.trim(), itemId);
+    };
+    one.onerror = e => {
+      setItemMicActive(itemId, false);
+      if (e.error === 'not-allowed') toast('マイクの使用が許可されていません');
+    };
+    one.onend = () => setItemMicActive(itemId, false);
+    try { one.start(); } catch(e) { setItemMicActive(itemId, false); }
+  },
+
+  processGlobal(text) {
+    const n = normalize(text);
+
+    // Navigation / action commands
+    if (/^(次|つぎ|ネクスト)/.test(n)) { focusNextItem(); return; }
+    if (/^(前|まえ|バック)/.test(n)) { focusPrevItem(); return; }
+    if (/^(最初|さいしょ|先頭)/.test(n)) { focusFirstItem(); return; }
+    if (/^(最後|さいご)/.test(n)) { focusLastItem(); return; }
+    if (/保存|ほぞん/.test(n)) { saveRecord(); return; }
+    if (/csv|シーエスブイ/i.test(n)) { exportCSV(); return; }
+    if (/クリア|消去/.test(n)) { confirmClear(); return; }
+    if (/やり直し|取り消し/.test(n)) { undoLastInput(); return; }
+    if (/停止|ていし|ストップ/.test(n)) { this.stopGlobal(); return; }
+
+    // Try item name match
+    const item = matchItem(n);
+    if (item) {
+      const rest = n.replace(item.name, '').trim();
+      if (item.type === 'okng') {
+        const j = parseOkNg(rest || n);
+        if (j !== null) { applyJudge(item.id, j, 'voice'); return; }
+      } else {
+        const v = parseNum(rest);
+        if (v !== null) { applyMeas(item.id, v, 'voice'); return; }
+      }
+      App.focusedItemId = item.id; renderTable(); renderSummary();
+      setVoiceStatus(`「${item.name}」を選択`); return;
+    }
+
+    // Apply to focused item
+    if (App.focusedItemId && App.currentRecord) {
+      const m = App.currentRecord.measurements.find(m => m.itemId === App.focusedItemId);
+      if (m) {
+        if (m.type === 'okng') { const j = parseOkNg(n); if (j !== null) { applyJudge(m.itemId, j, 'voice'); return; } }
+        else { const v = parseNum(n); if (v !== null) { applyMeas(m.itemId, v, 'voice'); return; } }
+      }
+    }
+    setVoiceStatus(`「${text}」— 認識できませんでした`);
+  },
+
+  processItem(text, itemId) {
+    const n = normalize(text);
+    if (!App.currentRecord) return;
+    const m = App.currentRecord.measurements.find(m => m.itemId === itemId);
+    if (!m) return;
+    if (m.type === 'okng') { const j = parseOkNg(n); if (j !== null) { applyJudge(itemId, j, 'voice'); return; } }
+    else { const v = parseNum(n); if (v !== null) { applyMeas(itemId, v, 'voice'); return; } }
+    toast(`認識できませんでした: ${text}`);
+  },
+
+  say(text, interrupt = true) {
+    if (!this.synth) return;
+    if (interrupt) this.synth.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ja-JP'; u.rate = 1.1;
+    this.synth.speak(u);
+  },
+};
+
+// ══════════════════════════════════════
+// Text parsing helpers
+// ══════════════════════════════════════
+function normalize(t) {
+  t = t.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  t = t.replace(/[．]/g, '.').replace(/(\d)てん(\d)/g, '$1.$2').replace(/(\d)点(\d)/g, '$1.$2');
+  t = t.replace(/マイナス(\d)/g, '-$1');
+  return t.trim();
+}
+function parseNum(t) { const m = t.match(/-?\d+\.?\d*/); return m ? parseFloat(m[0]) : null; }
+function parseOkNg(t) {
+  if (/^(ok|OK|オーケー|合格|良|まる|◯)/.test(t)) return 'OK';
+  if (/^(ng|NG|エヌジー|不合格|不良|ばつ|バツ|×)/.test(t)) return 'NG';
+  return null;
+}
+function matchItem(text) {
+  if (!App.currentRecord) return null;
+  const tmpl = tmplById(App.currentRecord.templateId);
+  if (!tmpl) return null;
+  const items = [...tmpl.items].sort((a, b) => b.name.length - a.name.length);
+  for (const it of items) if (text === it.name || text.startsWith(it.name)) return it;
+  for (const it of items) for (const al of (it.aliases || [])) if (text.includes(al)) return it;
+  for (const it of items) if (text.includes(it.name)) return it;
+  return null;
+}
+
+// ══════════════════════════════════════
+// Core actions
+// ══════════════════════════════════════
+function applyMeas(itemId, value, method) {
+  if (!App.currentRecord) return;
+  const m = App.currentRecord.measurements.find(m => m.itemId === itemId);
+  if (!m) return;
+  App.lastInput = { itemId, pv: m.measuredValue, pj: m.judgment, pm: m.inputMethod };
+  m.measuredValue = value; m.inputMethod = method; m.measuredAt = new Date().toISOString();
+  if (m.upperLimit !== null && m.lowerLimit !== null)
+    m.judgment = Judge.check(value, { upper: m.upperLimit, lower: m.lowerLimit });
+  App.currentRecord.summary = Judge.summary(App.currentRecord.measurements);
+  if (m.judgment === 'NG') {
+    navigator.vibrate && navigator.vibrate([200, 100, 200]);
+    Sp.say(`${m.itemName} ${value} エヌジー です。確認してください`);
+  } else if (m.judgment === 'OK') {
+    Sp.say(`${m.itemName} ${value} OK`);
+    setTimeout(focusNextPending, 500);
+  }
+  renderTable(); renderSummary();
+}
+
+function applyJudge(itemId, judgment, method) {
+  if (!App.currentRecord) return;
+  const m = App.currentRecord.measurements.find(m => m.itemId === itemId);
+  if (!m) return;
+  App.lastInput = { itemId, pv: m.measuredValue, pj: m.judgment, pm: m.inputMethod };
+  m.measuredValue = judgment; m.judgment = judgment; m.inputMethod = method;
+  m.measuredAt = new Date().toISOString();
+  App.currentRecord.summary = Judge.summary(App.currentRecord.measurements);
+  if (judgment === 'NG') {
+    navigator.vibrate && navigator.vibrate([200, 100, 200]);
+    Sp.say(`${m.itemName} エヌジー です。確認してください`);
+  } else {
+    Sp.say(`${m.itemName} OK`);
+    setTimeout(focusNextPending, 500);
+  }
+  renderTable(); renderSummary();
+}
+
+function undoLastInput() {
+  if (!App.lastInput || !App.currentRecord) { toast('取り消すものがありません'); return; }
+  const m = App.currentRecord.measurements.find(m => m.itemId === App.lastInput.itemId);
+  if (m) { m.measuredValue = App.lastInput.pv; m.judgment = App.lastInput.pj; m.inputMethod = App.lastInput.pm; }
+  App.currentRecord.summary = Judge.summary(App.currentRecord.measurements);
+  App.lastInput = null;
+  renderTable(); renderSummary();
+  toast('取り消しました'); Sp.say('取り消しました');
+}
+
+function focusNextItem() {
+  if (!App.currentRecord) return;
+  const a = App.currentRecord.measurements;
+  const i = a.findIndex(m => m.itemId === App.focusedItemId);
+  App.focusedItemId = a[(i + 1) % a.length].itemId;
+  renderTable(); scrollToFocused();
+}
+function focusPrevItem() {
+  if (!App.currentRecord) return;
+  const a = App.currentRecord.measurements;
+  const i = a.findIndex(m => m.itemId === App.focusedItemId);
+  App.focusedItemId = a[(i - 1 + a.length) % a.length].itemId;
+  renderTable(); scrollToFocused();
+}
+function focusFirstItem() {
+  if (!App.currentRecord || !App.currentRecord.measurements.length) return;
+  App.focusedItemId = App.currentRecord.measurements[0].itemId;
+  renderTable(); scrollToFocused();
+}
+function focusLastItem() {
+  if (!App.currentRecord || !App.currentRecord.measurements.length) return;
+  const a = App.currentRecord.measurements;
+  App.focusedItemId = a[a.length - 1].itemId;
+  renderTable(); scrollToFocused();
+}
+function focusNextPending() {
+  if (!App.currentRecord) return;
+  const a = App.currentRecord.measurements;
+  const i = a.findIndex(m => m.itemId === App.focusedItemId);
+  for (let d = 1; d < a.length; d++) {
+    const idx = (i + d) % a.length;
+    if (a[idx].judgment === null) { App.focusedItemId = a[idx].itemId; renderTable(); scrollToFocused(); return; }
+  }
+}
+
+function readPartInfo() {
+  return {
+    partNumber: document.getElementById('inp-partNumber').value,
+    process:    document.getElementById('inp-process').value,
+    operator:   document.getElementById('inp-operator').value,
+    lotNumber:  document.getElementById('inp-lotNumber').value,
+    machine:    document.getElementById('inp-machine').value,
+  };
+}
+function writePartInfo(r) {
+  if (r) {
+    document.getElementById('inp-partNumber').value = r.partNumber || '';
+    document.getElementById('inp-process').value    = r.process || '';
+    document.getElementById('inp-operator').value   = r.operator || '';
+    document.getElementById('inp-lotNumber').value  = r.lotNumber || '';
+    document.getElementById('inp-machine').value    = r.machine || '';
+  }
+}
+
+function saveRecord() {
+  if (!App.currentRecord) { toast('テンプレートを選択してください'); return; }
+  Object.assign(App.currentRecord, readPartInfo());
+  App.currentRecord.savedAt = new Date().toISOString();
+  App.currentRecord.summary = Judge.summary(App.currentRecord.measurements);
+  Store.addRec(App.currentRecord);
+  App.records = Store.loadRec();
+  toast('保存しました'); Sp.say('保存しました');
+}
+
+function exportCSV() {
+  if (!App.currentRecord) { toast('テンプレートを選択してください'); return; }
+  Object.assign(App.currentRecord, readPartInfo());
+  const csv = buildCSV(App.currentRecord);
+  dlCSV(csv, `checksheet_${App.currentRecord.partNumber || 'data'}_${dtStr()}.csv`);
+  toast('CSVを出力しました');
+}
+
+function confirmClear() { if (confirm('入力内容をクリアしますか？')) clearRecord(); }
+function clearRecord() {
+  if (!App.currentRecord) return;
+  App.currentRecord.measurements.forEach(m => { m.measuredValue = null; m.judgment = null; m.inputMethod = null; m.measuredAt = null; });
+  App.currentRecord.summary = Judge.summary(App.currentRecord.measurements);
+  App.lastInput = null; renderTable(); renderSummary(); toast('クリアしました');
+}
+
+// ══════════════════════════════════════
+// CSV
+// ══════════════════════════════════════
+function buildCSV(rec) {
+  const rows = [];
+  rows.push(['品番','工程','作業者','ロット番号','機械番号','開始日時','保存日時','テンプレート']);
+  rows.push([rec.partNumber,rec.process,rec.operator,rec.lotNumber,rec.machine,
+    fmtDt(rec.startedAt), fmtDt(rec.savedAt), rec.templateName]);
+  rows.push([]);
+  rows.push(['項目名','単位','公称値','上限値','下限値','測定値','判定','入力方法','測定時刻']);
+  rec.measurements.forEach(m => rows.push([
+    m.itemName, m.unit||'',
+    m.nominalValue!==null?m.nominalValue:'',
+    m.upperLimit!==null?m.upperLimit:'',
+    m.lowerLimit!==null?m.lowerLimit:'',
+    m.measuredValue!==null?m.measuredValue:'',
+    m.judgment||'',
+    m.inputMethod==='voice'?'音声':m.inputMethod==='manual'?'手動':'',
+    m.measuredAt?m.measuredAt.slice(11,19):'',
+  ]));
+  return '﻿' + rows.map(r => r.map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+}
+function buildAllCSV(recs) {
+  const hdr = ['品番','工程','作業者','ロット','機械','保存日時','テンプレート','項目名','単位','公称値','上限値','下限値','測定値','判定','入力方法'];
+  const rows = [hdr];
+  recs.forEach(rec => rec.measurements.forEach(m => rows.push([
+    rec.partNumber,rec.process,rec.operator,rec.lotNumber,rec.machine,
+    fmtDt(rec.savedAt||rec.startedAt),rec.templateName,
+    m.itemName,m.unit||'',
+    m.nominalValue!==null?m.nominalValue:'',
+    m.upperLimit!==null?m.upperLimit:'',
+    m.lowerLimit!==null?m.lowerLimit:'',
+    m.measuredValue!==null?m.measuredValue:'',
+    m.judgment||'',
+    m.inputMethod==='voice'?'音声':m.inputMethod==='manual'?'手動':'',
+  ])));
+  return '﻿' + rows.map(r => r.map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+}
+function dlCSV(content, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type:'text/csv;charset=utf-8;' }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+function fmtDt(iso) { return iso ? iso.replace('T',' ').slice(0,16) : ''; }
+function dtStr() { return new Date().toISOString().replace(/[-:T]/g,'').slice(0,12); }
+
+// ══════════════════════════════════════
+// UI Rendering
+// ══════════════════════════════════════
+function renderTable() {
+  const tbody = document.getElementById('meas-tbody');
+  const noMsg = document.getElementById('no-template-msg');
+  if (!App.currentRecord || !App.currentRecord.measurements.length) {
+    tbody.innerHTML = ''; noMsg.style.display = 'block'; return;
+  }
+  noMsg.style.display = 'none';
+  tbody.innerHTML = App.currentRecord.measurements.map(m => {
+    const focused = m.itemId === App.focusedItemId;
+    const cls = focused ? 'meas-row focused' : m.judgment === 'OK' ? 'meas-row ok' : m.judgment === 'NG' ? 'meas-row ng' : 'meas-row';
+    const spec = m.nominalValue !== null
+      ? `${m.nominalValue}<br><span style="font-size:11px;color:#888">${fmtTol(m)}</span>` : '—';
+
+    let valHtml;
+    if (m.type === 'numeric') {
+      const ic = m.judgment === 'OK' ? 'meas-input ok' : m.judgment === 'NG' ? 'meas-input ng' : 'meas-input';
+      valHtml = `<input type="number" step="any" inputmode="decimal" class="${ic}"
+        value="${m.measuredValue !== null ? m.measuredValue : ''}" placeholder="—"
+        onchange="handleManual('${m.itemId}',this.value)"
+        onfocus="setFocus('${m.itemId}')">`;
+    } else {
+      valHtml = `<div class="okng-btns">
+        <button class="btn-okng${m.judgment==='OK'?' sel-ok':''}" onclick="applyJudge('${m.itemId}','OK','manual')">OK</button>
+        <button class="btn-okng${m.judgment==='NG'?' sel-ng':''}" onclick="applyJudge('${m.itemId}','NG','manual')">NG</button>
+      </div>`;
+    }
+    const badge = m.judgment === 'OK' ? '<span class="badge badge-ok">OK</span>'
+                : m.judgment === 'NG' ? '<span class="badge badge-ng">NG</span>'
+                : '<span class="badge badge-pending">—</span>';
+    return `<tr class="${cls}" id="row-${m.itemId}">
+      <td class="td-name" onclick="App.focusedItemId='${m.itemId}';renderTable()">${m.itemName}<br><small class="unit-text">${m.unit||''}</small></td>
+      <td class="td-spec">${spec}</td>
+      <td class="td-value">${valHtml}</td>
+      <td class="td-judge">${badge}</td>
+      <td class="td-mic"><button class="mic-btn" id="mic-${m.itemId}" onclick="Sp.startItem('${m.itemId}')">🎤</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function fmtTol(m) {
+  if (m.upperLimit === null && m.lowerLimit === null) return '';
+  const u = m.upperLimit !== null ? m.upperLimit : '∞';
+  const l = m.lowerLimit !== null ? m.lowerLimit : '-∞';
+  return `${l} ～ ${u}`;
+}
+
+function renderSummary() {
+  const el = document.getElementById('summary-bar');
+  if (!App.currentRecord) { el.textContent = '—'; return; }
+  const s = App.currentRecord.summary;
+  el.innerHTML = `${s.total-s.pending}/${s.total}件 <span class="ok-text">OK:${s.ok}</span> <span class="ng-text">NG:${s.ng}</span>`;
+}
+
+function renderTemplateSelector() {
+  const sel = document.getElementById('sel-template');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— テンプレートを選択 —</option>' +
+    App.templates.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  if (cur && App.templates.find(t => t.id === cur)) sel.value = cur;
+}
+
+function renderTmplList() {
+  const el = document.getElementById('tmpl-list');
+  if (!App.templates.length) { el.innerHTML = '<p style="color:var(--muted);text-align:center;padding:16px">テンプレートがありません</p>'; return; }
+  el.innerHTML = App.templates.map(t => `
+    <div class="tmpl-list-item${App.editingTemplate && App.editingTemplate.id===t.id?' active':''}" onclick="selEditTmpl('${t.id}')">
+      <div style="flex:1"><strong>${t.name}</strong> <span style="font-size:12px;color:var(--muted)">${t.items.length}項目</span></div>
+      <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();delTemplate('${t.id}')">削除</button>
+    </div>`).join('');
+}
+
+function renderTmplItems() {
+  const el = document.getElementById('tmpl-item-list');
+  if (!App.editingTemplate) { el.innerHTML = '<p style="color:var(--muted);text-align:center;padding:16px">テンプレートを選択してください</p>'; return; }
+  if (!App.editingTemplate.items.length) { el.innerHTML = '<p style="color:var(--muted);text-align:center;padding:16px">項目がありません。下のフォームから追加してください。</p>'; return; }
+  el.innerHTML = App.editingTemplate.items.map(item => `
+    <div class="tmpl-item">
+      <div class="tmpl-item-info">
+        <strong>${item.name}</strong>${item.unit?' ['+item.unit+']':''}
+        <span style="font-size:12px;color:var(--muted);margin-left:6px">${fmtItemSpec(item)}</span>
+      </div>
+      <button class="btn btn-sm btn-danger" onclick="delTmplItem('${App.editingTemplate.id}','${item.id}')">✕</button>
+    </div>`).join('');
+}
+
+function fmtItemSpec(item) {
+  if (item.type === 'okng') return 'OK/NG';
+  if (item.nominalValue === null) return '—';
+  const u = item.upperTol !== null ? `+${item.upperTol}` : '';
+  const l = item.lowerTol !== null ? `${item.lowerTol}` : '';
+  return `${item.nominalValue} (${u}/${l})`;
+}
+
+function renderHistory() {
+  const el = document.getElementById('hist-list');
+  const recs = App.records.filter(r => {
+    if (App.histFilter.partNumber && !r.partNumber.includes(App.histFilter.partNumber)) return false;
+    if (App.histFilter.dateFrom && (r.savedAt || r.startedAt) < App.histFilter.dateFrom) return false;
+    return true;
+  });
+  if (!recs.length) {
+    el.innerHTML = '<p style="color:var(--muted);text-align:center;padding:24px">レコードがありません</p>';
+    renderTodaySummary(App.records); return;
+  }
+  el.innerHTML = recs.map(r => {
+    const s = r.summary || { ok:0, ng:0, pending:0 };
+    const dt = fmtDt(r.savedAt || r.startedAt);
+    return `<div class="hist-item" onclick="showHist('${r.id}')">
+      <div class="hist-header"><strong>${r.partNumber||'(品番なし)'}</strong><span class="hist-date">${dt}</span></div>
+      <div class="hist-sub">${r.templateName} ／ ${r.operator||'—'} ／ ロット: ${r.lotNumber||'—'}</div>
+      <div class="hist-badges"><span class="badge badge-ok">OK:${s.ok}</span><span class="badge badge-ng">NG:${s.ng}</span><span class="badge badge-pending">未:${s.pending}</span></div>
+    </div>`;
+  }).join('');
+  renderTodaySummary(App.records);
+}
+
+function renderTodaySummary(records) {
+  const today = new Date().toISOString().slice(0, 10);
+  const tr = records.filter(r => (r.savedAt || r.startedAt || '').startsWith(today));
+  const ok = tr.reduce((s, r) => s + (r.summary ? r.summary.ok : 0), 0);
+  const ng = tr.reduce((s, r) => s + (r.summary ? r.summary.ng : 0), 0);
+  const ngByItem = {};
+  tr.forEach(r => (r.measurements || []).filter(m => m.judgment === 'NG').forEach(m => { ngByItem[m.itemName] = (ngByItem[m.itemName]||0)+1; }));
+  const rank = Object.entries(ngByItem).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  document.getElementById('today-summary').innerHTML =
+    `<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:6px">
+      <div><span style="font-size:28px;font-weight:bold;color:var(--ok)">${ok}</span><span style="color:var(--muted);font-size:13px"> OK</span></div>
+      <div><span style="font-size:28px;font-weight:bold;color:var(--ng)">${ng}</span><span style="color:var(--muted);font-size:13px"> NG</span></div>
+      <div><span style="font-size:28px;font-weight:bold">${tr.length}</span><span style="color:var(--muted);font-size:13px"> 件</span></div>
+    </div>
+    ${rank.length?`<div style="font-size:13px;color:var(--muted)">NG多発: ${rank.map(([k,v])=>`${k}(${v})`).join(' / ')}</div>`:''}`;
+}
+
+function scrollToFocused() {
+  const row = document.getElementById('row-' + App.focusedItemId);
+  if (row) row.scrollIntoView({ behavior:'smooth', block:'center' });
+}
+
+// ══════════════════════════════════════
+// Voice UI helpers
+// ══════════════════════════════════════
+function updateMicBtn() {
+  const btn = document.getElementById('btn-global-mic');
+  const st  = document.getElementById('voice-status');
+  if (App.isListening) {
+    btn.classList.add('listening');
+    btn.textContent = '⏹ 停止';
+    st.textContent = '🎤 認識中... 話しかけてください';
+  } else {
+    btn.classList.remove('listening');
+    btn.textContent = '🎤 音声入力開始';
+    st.textContent = App.online
+      ? '「外径 25.3」「次」「保存」など / 行の🎤で個別入力'
+      : '⚠ オフライン — 手動入力をご利用ください';
+  }
+}
+function toggleGlobalMic() { App.isListening ? Sp.stopGlobal() : Sp.startGlobal(); }
+function showTranscript(text, final) {
+  const el = document.getElementById('transcript-area');
+  el.textContent = text; el.classList.toggle('hidden', !text);
+  el.style.opacity = final ? '0.6' : '1';
+  if (final) setTimeout(() => el.classList.add('hidden'), 2500);
+}
+function setVoiceStatus(msg) { document.getElementById('voice-status').textContent = msg; }
+function setItemMicActive(id, on) {
+  const btn = document.getElementById('mic-' + id);
+  if (btn) btn.classList.toggle('recording', on);
+}
+
+// ══════════════════════════════════════
+// Tab actions
+// ══════════════════════════════════════
+function switchTab(tab) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('screen-' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  App.currentTab = tab;
+  document.getElementById('voice-panel').style.display = tab === 'check' ? 'block' : 'none';
+  if (tab === 'history') { App.records = Store.loadRec(); renderHistory(); }
+  if (tab === 'template') { renderTmplList(); renderTmplItems(); }
+}
+
+// ══════════════════════════════════════
+// Check screen actions
+// ══════════════════════════════════════
+function selectTemplate(id) {
+  if (!id) { App.currentRecord = null; App.focusedItemId = null; renderTable(); renderSummary(); return; }
+  App.currentRecord = mkRecord(id, readPartInfo());
+  App.currentRecord.startedAt = new Date().toISOString();
+  document.getElementById('inp-date').value = fmtDt(App.currentRecord.startedAt);
+  App.focusedItemId = App.currentRecord.measurements.length ? App.currentRecord.measurements[0].itemId : null;
+  renderTable(); renderSummary();
+}
+
+function setFocus(itemId) {
+  if (App.focusedItemId === itemId) return;
+  const prev = App.focusedItemId;
+  App.focusedItemId = itemId;
+  // Lightweight CSS-only update — keeps keyboard open on mobile
+  [prev, itemId].forEach(id => {
+    if (!id) return;
+    const row = document.getElementById('row-' + id);
+    if (!row) return;
+    const m = App.currentRecord && App.currentRecord.measurements.find(m => m.itemId === id);
+    if (!m) return;
+    row.className = id === App.focusedItemId ? 'meas-row focused'
+      : m.judgment === 'OK' ? 'meas-row ok'
+      : m.judgment === 'NG' ? 'meas-row ng' : 'meas-row';
+    const inp = row.querySelector('.meas-input');
+    if (inp) {
+      inp.className = 'meas-input' + (m.judgment === 'OK' ? ' ok' : m.judgment === 'NG' ? ' ng' : '');
+    }
+  });
+}
+
+function handleManual(itemId, val) {
+  if (!App.currentRecord) return;
+  if (val === '' || val === null || val === undefined) {
+    const m = App.currentRecord.measurements.find(m => m.itemId === itemId);
+    if (m) { m.measuredValue = null; m.judgment = null; m.inputMethod = null; }
+    App.currentRecord.summary = Judge.summary(App.currentRecord.measurements);
+    renderTable(); renderSummary(); return;
+  }
+  const n = parseFloat(val);
+  if (!isNaN(n)) applyMeas(itemId, n, 'manual');
+}
+
+// ══════════════════════════════════════
+// Template tab actions
+// ══════════════════════════════════════
+function createNewTemplate() {
+  const name = prompt('テンプレート名を入力してください');
+  if (!name) return;
+  const tmpl = { id:'tpl_'+Date.now(), name, createdAt:new Date().toISOString(), items:[] };
+  App.templates.unshift(tmpl);
+  Store.saveTmpl(App.templates);
+  App.editingTemplate = tmpl;
+  document.getElementById('tmpl-edit-name').value = name;
+  renderTmplList(); renderTmplItems(); renderTemplateSelector();
+}
+
+function selEditTmpl(id) {
+  App.editingTemplate = tmplById(id) || null;
+  document.getElementById('tmpl-edit-name').value = App.editingTemplate ? App.editingTemplate.name : '';
+  renderTmplList(); renderTmplItems();
+}
+
+function saveTemplateName() {
+  if (!App.editingTemplate) { toast('テンプレートを選択してください'); return; }
+  const name = document.getElementById('tmpl-edit-name').value.trim();
+  if (!name) { toast('テンプレート名を入力してください'); return; }
+  App.editingTemplate.name = name;
+  Store.saveTmpl(App.templates);
+  renderTmplList(); renderTemplateSelector(); toast('保存しました');
+}
+
+function delTemplate(id) {
+  if (!confirm('このテンプレートを削除しますか？')) return;
+  App.templates = App.templates.filter(t => t.id !== id);
+  Store.saveTmpl(App.templates);
+  if (App.editingTemplate && App.editingTemplate.id === id) App.editingTemplate = null;
+  if (App.currentRecord && App.currentRecord.templateId === id) { App.currentRecord = null; renderTable(); renderSummary(); }
+  renderTmplList(); renderTmplItems(); renderTemplateSelector();
+}
+
+function toggleTypeFields() {
+  const numeric = document.getElementById('ti-type').value === 'numeric';
+  document.getElementById('numeric-fields').style.display = numeric ? '' : 'none';
+  document.getElementById('fg-unit').style.display = numeric ? '' : 'none';
+}
+
+function addTemplateItem() {
+  if (!App.editingTemplate) { toast('テンプレートを選択してください'); return; }
+  const name = document.getElementById('ti-name').value.trim();
+  const type = document.getElementById('ti-type').value;
+  if (!name) { toast('項目名を入力してください'); return; }
+  const nominal = parseFloat(document.getElementById('ti-nominal').value);
+  if (type === 'numeric' && isNaN(nominal)) { toast('公称値を入力してください'); return; }
+  const upperRaw = parseFloat(document.getElementById('ti-upper').value);
+  const lowerRaw = parseFloat(document.getElementById('ti-lower').value);
+  const item = {
+    id: 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+    name, aliases: [],
+    nominalValue: type === 'numeric' ? nominal : null,
+    upperTol: type === 'numeric' ? (isNaN(upperRaw) ? 0 : Math.abs(upperRaw)) : null,
+    lowerTol: type === 'numeric' ? (isNaN(lowerRaw) ? 0 : -Math.abs(lowerRaw)) : null,
+    unit: document.getElementById('ti-unit').value.trim() || (type === 'numeric' ? 'mm' : ''),
+    type, order: App.editingTemplate.items.length,
+  };
+  App.editingTemplate.items.push(item);
+  Store.saveTmpl(App.templates);
+  ['ti-name','ti-nominal','ti-upper','ti-lower'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('ti-unit').value = 'mm';
+  renderTmplItems(); toast(`「${name}」を追加しました`);
+}
+
+function delTmplItem(tmplId, itemId) {
+  const tmpl = tmplById(tmplId);
+  if (!tmpl) return;
+  tmpl.items = tmpl.items.filter(i => i.id !== itemId);
+  Store.saveTmpl(App.templates);
+  renderTmplItems();
+}
+
+function loadPreset(key) {
+  const preset = PRESETS[key];
+  if (!preset) return;
+  if (!confirm(`「${preset.name}」を新しいテンプレートとして追加しますか？`)) return;
+  const tmpl = { id:'tpl_'+Date.now(), name:preset.name, createdAt:new Date().toISOString(), items:[] };
+  preset.items.forEach((it, i) => tmpl.items.push({ ...it, id:'item_'+Date.now()+'_'+i, aliases: it.aliases||[], order:i }));
+  App.templates.unshift(tmpl);
+  Store.saveTmpl(App.templates);
+  App.editingTemplate = tmpl;
+  document.getElementById('tmpl-edit-name').value = tmpl.name;
+  renderTmplList(); renderTmplItems(); renderTemplateSelector();
+  toast(`「${preset.name}」を追加しました`);
+}
+
+// ══════════════════════════════════════
+// History tab actions
+// ══════════════════════════════════════
+function applyHistFilter() {
+  App.histFilter.partNumber = document.getElementById('hist-filter-pn').value;
+  App.histFilter.dateFrom   = document.getElementById('hist-filter-from').value;
+  renderHistory();
+}
+function clearHistFilter() {
+  document.getElementById('hist-filter-pn').value = '';
+  document.getElementById('hist-filter-from').value = '';
+  App.histFilter = { partNumber:'', dateFrom:'' };
+  renderHistory();
+}
+function exportAllCSV() {
+  if (!App.records.length) { toast('履歴がありません'); return; }
+  dlCSV(buildAllCSV(App.records), `checksheet_all_${dtStr()}.csv`);
+  toast('全件CSVを出力しました');
+}
+function clearAllHistory() {
+  if (!confirm('すべての履歴を削除しますか？')) return;
+  Store.saveRec([]); App.records = []; renderHistory(); toast('履歴を削除しました');
+}
+
+// ══════════════════════════════════════
+// History detail modal
+// ══════════════════════════════════════
+let selectedRec = null;
+function showHist(id) {
+  selectedRec = App.records.find(r => r.id === id);
+  if (!selectedRec) return;
+  const r = selectedRec;
+  document.getElementById('modal-title').textContent = `${r.partNumber||'品番なし'} — ${fmtDt(r.savedAt||r.startedAt)}`;
+  let body = `<div style="font-size:13px;color:var(--muted);margin-bottom:12px">
+    ${r.templateName} ／ 工程:${r.process||'—'} ／ 作業者:${r.operator||'—'} ／ ロット:${r.lotNumber||'—'} ／ 機械:${r.machine||'—'}
+  </div>
+  <table style="width:100%;border-collapse:collapse;font-size:14px">
+    <thead><tr style="background:#f5f5f5">
+      <th style="padding:6px;text-align:left;border-bottom:2px solid #ddd">項目</th>
+      <th style="padding:6px;text-align:center;border-bottom:2px solid #ddd">範囲</th>
+      <th style="padding:6px;text-align:center;border-bottom:2px solid #ddd">測定値</th>
+      <th style="padding:6px;text-align:center;border-bottom:2px solid #ddd">判定</th>
+    </tr></thead><tbody>`;
+  r.measurements.forEach(m => {
+    const bg = m.judgment==='OK'?'#e8f5e9':m.judgment==='NG'?'#ffebee':'';
+    const range = m.upperLimit!==null ? `${m.lowerLimit??'—'} ～ ${m.upperLimit??'—'}` : m.type==='okng'?'OK/NG':'—';
+    body += `<tr style="background:${bg};border-bottom:1px solid #eee">
+      <td style="padding:8px 6px;font-weight:bold">${m.itemName}</td>
+      <td style="padding:8px 6px;text-align:center;font-size:12px;color:var(--muted)">${range}</td>
+      <td style="padding:8px 6px;text-align:center;font-weight:bold">${m.measuredValue!==null?m.measuredValue:'—'} ${m.unit||''}</td>
+      <td style="padding:8px 6px;text-align:center"><span class="badge ${m.judgment==='OK'?'badge-ok':m.judgment==='NG'?'badge-ng':'badge-pending'}">${m.judgment||'—'}</span></td>
+    </tr>`;
+  });
+  body += '</tbody></table>';
+  document.getElementById('modal-body').innerHTML = body;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); selectedRec = null; }
+function exportSelectedCSV() {
+  if (!selectedRec) return;
+  dlCSV(buildCSV(selectedRec), `checksheet_${selectedRec.partNumber||'data'}_${dtStr()}.csv`);
+}
+function deleteSelectedRecord() {
+  if (!selectedRec || !confirm('このレコードを削除しますか？')) return;
+  Store.delRec(selectedRec.id); App.records = Store.loadRec(); closeModal(); renderHistory(); toast('削除しました');
+}
+
+// ══════════════════════════════════════
+// Toast
+// ══════════════════════════════════════
+function toast(msg, dur = 2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.remove('hidden');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.add('hidden'), dur);
+}
+
+// ══════════════════════════════════════
+// Online / Offline
+// ══════════════════════════════════════
+window.addEventListener('online',  () => { App.online = true;  updateMicBtn(); toast('オンラインになりました'); });
+window.addEventListener('offline', () => {
+  App.online = false;
+  if (App.isListening) Sp.stopGlobal();
+  updateMicBtn(); toast('オフラインになりました。手動入力をご利用ください。');
+});
+
+// ══════════════════════════════════════
+// Init
+// ══════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW:', e));
+
+  App.templates = Store.loadTmpl();
+  App.records   = Store.loadRec();
+
+  const ok = Sp.init();
+  if (!ok) {
+    document.getElementById('voice-panel').innerHTML =
+      '<p style="color:var(--ng);text-align:center;padding:14px">⚠ 音声認識非対応。Chrome(Android)をご利用ください。</p>';
+  }
+
+  document.getElementById('inp-date').value = fmtDt(new Date().toISOString());
+  renderTemplateSelector();
+  renderTable();
+  renderSummary();
+  updateMicBtn();
+
+  if (navigator.permissions) {
+    navigator.permissions.query({ name:'microphone' }).then(s => {
+      if (s.state === 'denied') toast('マイクが拒否されています。ブラウザの設定から許可してください。');
+    }).catch(() => {});
+  }
+});
+</script>
+</body>
+</html>

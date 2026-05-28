@@ -1,0 +1,19 @@
+{
+  "name": "初物チェックシート",
+  "short_name": "初物チェック",
+  "description": "金属加工品の初物検査を音声入力で行うPWAツール",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#1565C0",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
